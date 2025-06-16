@@ -17,7 +17,7 @@ import (
 	"nhooyr.io/websocket"
 )
 
-func main() {
+func main2() {
 	ctx := context.Background()
 	testproto := "h3"
 	h2client := &http.Client{Transport: &http2.Transport{}}
