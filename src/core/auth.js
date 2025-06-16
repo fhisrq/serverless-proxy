@@ -49,13 +49,17 @@ export async function keygen(seedhex, ctxhex) {
  * @param {string} msgmachex
  * @returns {Promise<number>}
  */
-export async function verifyClaim(sk, fullthex, msghex, msgmachex) {
+export async function verifyClaim(sk, fullthex, msghex, msgmachex, checkExpiry = true) {
   try {
-    const y1 = verifyExpiry(fullthex);
-    if (!y1) {
-      log.d("verifyClaim: expired");
-      return notok;
+    if (checkExpiry) {
+      const y1 = verifyExpiry(fullthex);
+      if (!y1) {
+        log.d("verifyClaim: expired");
+        return notok;
+      }
     }
+    // shex is the hmac-signature over hashedthex, which is in possession
+    // of the client which must have signed msghex with the same key
     const [hashedthex, shex] = await deriveIssue(sk, fullthex);
     if (!hashedthex || !shex) {
       log.d("verifyClaim: cannot derive tok/sig");
@@ -75,20 +79,26 @@ export async function verifyClaim(sk, fullthex, msghex, msgmachex) {
 }
 
 /**
+ * Returns expiryMs and sigthex, hmac(sigkey, expiryMs+hashedthex).
  * Scenario 4: privacypass.github.io/protocol
  * @param {CryptoKey} sigkey
- * @param {string} hashedthex
- * @returns {Promise<[string, string]>}
+ * @param {string} hashedthex 64-char hex
+ * @param {number} expiryMs duration in milliseconds
+ * @returns {Promise<[string, string]>} expiryMs and sigthex
  */
-export async function issue(sigkey, hashedthex) {
+export async function issue(sigkey, hashedthex, expiryMs = cfg.minAuthExpiryMs) {
   if (bin.emptyString(hashedthex) || hashedthex.length !== 64) {
+    log.d("issue: invalid hashedthex", hashedthex);
     return null;
   }
-  // expires in 30days
-  const expiryMs = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  if (expiryMs <= 0) {
+    log.d("issue: invalid expiryMs", expiryMs);
+    return null;
+  }
+  const when = Date.now() + expiryMs;
   // expiryHex will not exceed 11 chars until 17592186044415 (year 2527)
   // 17592186044415 = 0xfffffffffff
-  const expiryHex = expiryMs.toString(16);
+  const expiryHex = when.toString(16);
   hashedthex = expiryHex + hashedthex;
   const hashedtoken = bin.hex2buf(hashedthex);
   const sig = await hmacsign(sigkey, hashedtoken);
@@ -96,6 +106,12 @@ export async function issue(sigkey, hashedthex) {
   return [expiryHex, shex];
 }
 
+/**
+ * Returns hashed-token (expiryMs+sha256(user-token)) and a hmac-signature over it.
+ * @param {CryptoKey} sigkey
+ * @param {string} fullthex
+ * @returns {Promise<[string, string]>}
+ */
 async function deriveIssue(sigkey, fullthex) {
   const expiryHex = fullthex.slice(0, 11);
   const userthex = fullthex.slice(11);
@@ -105,8 +121,8 @@ async function deriveIssue(sigkey, fullthex) {
   const hashedtoken = bin.hex2buf(hashedthex);
   log.d("userthex", userthex, "\nhashedthex", hashedthex);
   const sig = await hmacsign(sigkey, hashedtoken);
-  const shex = bin.buf2hex(sig);
-  return [hashedthex, shex];
+  const signedthex = bin.buf2hex(sig);
+  return [hashedthex, signedthex];
 }
 
 export async function message(shex, msghex) {

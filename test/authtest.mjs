@@ -12,9 +12,13 @@ const enc = new TextEncoder();
 // ref: github.com/privacypass/challenge-bypass-extension/blob/732205c052d/src/blindrsa/blindrsa.test.ts
 (async (main) => {
   log.key("d");
-  await gointerop();
+  // await gointerop();
+  const ps = performance.mark("start");
   await tokenauth();
-  await blindrsa();
+  const pe = performance.mark("end");
+  const pm = performance.measure("start to end", "start", "end");
+  console.log("time:", pm.duration, "ms");
+  // await blindrsa();
 })();
 
 async function tokenauth() {
@@ -31,10 +35,10 @@ async function tokenauth() {
 
   console.log("fullthex:", fullthex, "\nhashedthex:", claim[0] + hashedthex);
 
-  const sighex = claim[1];
+  const sigthex = claim[1];
   const msg = bin.str2byte("msg");
   const msghex = bin.buf2hex(msg);
-  const msgmachex = await auth.message(sighex, msghex);
+  const msgmachex = await auth.message(sigthex, msghex);
   const y = await auth.verifyClaim(sk, fullthex, msghex, msgmachex);
   console.log("tokenauth: verifyClaim:", y == auth.ok);
 }

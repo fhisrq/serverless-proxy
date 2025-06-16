@@ -14,7 +14,7 @@ export const h2header = {
 };
 // auth token
 export const headerClaim = "x-nile-pip-claim";
-// msg is a nonce for the claim
+// msg is a ctx for the claim
 export const headerMsg = "x-nile-pip-msg";
 // mac is a hmac of the headerMsg
 export const headerMac = "x-nile-pip-mac";
@@ -31,6 +31,8 @@ export const wsConnTimeoutMs = 10000;
 export const useWaiter = false;
 // immutable info context for keygen
 export const authContext = "per-client-pip-key";
+// minimum expiry for auth token
+export const minAuthExpiryMs = 3 * 60 * 60 * 1000; // 3hrs
 
 export const wenvBlindRsaPrivateKeyPrefix = "PRIVATE_KEY_BLINDRSA_";
 export const wenvBlindRsaPublicKeyPrefix = "PUBLIC_KEY_BLINDRSA_";
